@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robots Zoomorfos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', -apple-system, 'Helvetica Neue', sans-serif;
+            background: #f5f5f7;
+            color: #1d1d1f;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+        ::selection { background: #5e5ce6; color: #fff; }
+
+        .cursor {
+            position: fixed; width: 12px; height: 12px; border-radius: 50%;
+            background: #5e5ce6; pointer-events: none; z-index: 9999;
+            mix-blend-mode: exclusion; opacity: 0;
+            transition: width 0.3s, height 0.3s, opacity 0.3s;
+            transform: translate(-6px, -6px);
+        }
+        .cursor.hover { width: 48px; height: 48px; background: rgba(94,92,230,0.15); }
+        .cursor.visible { opacity: 1; }
+
+        canvas#particles {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none; z-index: 0;
+        }
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 32px; position: relative; z-index: 1; }
+
+        nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: rgba(245,245,247,0.72);
+            backdrop-filter: saturate(180%) blur(20px);
+            border-bottom: 1px solid rgba(210,210,215,0.4);
+            transition: background 0.5s;
+        }
+        nav.scrolled { background: rgba(245,245,247,0.92); }
+        nav .container { display: flex; align-items: center; justify-content: space-between; height: 56px; }
+        nav .logo { font-weight: 700; font-size: 14px; letter-spacing: -0.01em; text-decoration: none; color: #1d1d1f; }
+        nav .logo span { color: #5e5ce6; }
+        nav ul { display: flex; list-style: none; gap: 32px; }
+        nav ul a {
+            color: #6e6e73; text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.3s;
+            position: relative;
+        }
+        nav ul a::after {
+            content: ''; position: absolute; bottom: -4px; left: 0;
+            width: 0; height: 2px; background: #5e5ce6; transition: width 0.3s cubic-bezier(0.25,0.1,0.25,1);
+        }
+        nav ul a:hover { color: #1d1d1f; }
+        nav ul a:hover::after { width: 100%; }
+
+        .hero {
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            text-align: center; position: relative; overflow: hidden; background: #000; margin-top: 56px;
+        }
+        .hero-bg {
+            position: absolute; inset: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 20% 50%, rgba(94,92,230,0.12) 0%, transparent 60%),
+                radial-gradient(ellipse 80% 60% at 80% 50%, rgba(94,92,230,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 40% at 50% 0%, rgba(255,255,255,0.03) 0%, transparent 50%);
+            animation: bgMorph 12s ease-in-out infinite alternate;
+        }
+        @keyframes bgMorph {
+            0% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(1deg); }
+            100% { transform: scale(0.95) rotate(-1deg); }
+        }
+        .hero-grid {
+            position: absolute; inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 64px 64px;
+            mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 20%, transparent 70%);
+            -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 20%, transparent 70%);
+        }
+        .hero-content { position: relative; z-index: 2; padding: 0 24px; }
+        .hero-badge {
+            display: inline-block; font-size: 12px; font-weight: 600; color: #5e5ce6;
+            background: rgba(94,92,230,0.1); padding: 6px 16px; border-radius: 20px;
+            letter-spacing: 0.03em; margin-bottom: 24px; backdrop-filter: blur(8px);
+            border: 1px solid rgba(94,92,230,0.15);
+        }
+        .hero h1 {
+            font-size: clamp(48px, 8vw, 96px); font-weight: 800;
+            letter-spacing: -0.03em; line-height: 1.05; color: #fff; margin-bottom: 24px;
+        }
+        .hero h1 .gradient {
+            background: linear-gradient(135deg, #5e5ce6, #a5a3ff, #5e5ce6);
+            background-size: 200% 200%;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+            animation: gradShift 4s ease-in-out infinite;
+        }
+        @keyframes gradShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        .hero p { font-size: clamp(18px, 2vw, 24px); color: rgba(255,255,255,0.5); max-width: 600px; margin: 0 auto 40px; }
+        .hero-cta {
+            display: inline-flex; align-items: center; gap: 12px; padding: 14px 32px;
+            border-radius: 40px; background: #5e5ce6; color: #fff; font-size: 15px; font-weight: 600;
+            text-decoration: none; transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 24px rgba(94,92,230,0.3);
+        }
+        .hero-cta:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 40px rgba(94,92,230,0.4); }
+        .hero-scroll {
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 2;
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            color: rgba(255,255,255,0.3); font-size: 11px; font-weight: 500;
+            letter-spacing: 0.1em; text-transform: uppercase;
+            animation: fadeBounce 2s ease-in-out infinite;
+        }
+        .hero-scroll .line { width: 1px; height: 32px; background: linear-gradient(to bottom, rgba(255,255,255,0.3), transparent); }
+        @keyframes fadeBounce {
+            0%, 100% { opacity: 0.5; transform: translateX(-50%) translateY(0); }
+            50% { opacity: 1; transform: translateX(-50%) translateY(4px); }
+        }
+
+        .section { padding: 120px 0; position: relative; }
+        .section:nth-child(even) { background: #fff; }
+        .section-label {
+            font-size: 13px; font-weight: 600; color: #5e5ce6;
+            letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px;
+        }
+        .section-title {
+            font-size: clamp(32px, 4vw, 56px); font-weight: 700;
+            letter-spacing: -0.025em; line-height: 1.1; margin-bottom: 16px;
+        }
+        .section-desc { font-size: 18px; color: #6e6e73; max-width: 560px; line-height: 1.6; }
+
+        .intro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+        .intro-text { font-size: 17px; color: #3a3a3c; line-height: 1.8; }
+        .intro-visual {
+            aspect-ratio: 4/3; border-radius: 24px;
+            background: linear-gradient(135deg, #1d1d1f, #2d2d2f);
+            display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden;
+        }
+
+        /* GALLERY */
+        .robot-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+        .robot-card {
+            border-radius: 20px;
+            overflow: hidden;
+            background: #fff;
+            border: 1px solid rgba(210,210,215,0.3);
+            transition: transform 0.5s cubic-bezier(0.25,0.1,0.25,1), box-shadow 0.5s;
+            cursor: pointer;
+            position: relative;
+        }
+        .robot-card:hover {
+            transform: translateY(-8px) scale(1.01);
+            box-shadow: 0 24px 60px rgba(0,0,0,0.1);
+        }
+        .robot-card .img {
+            width: 100%;
+            aspect-ratio: 16/10;
+            position: relative;
+            overflow: hidden;
+            background: #1d1d1f;
+        }
+        .robot-card .img img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s cubic-bezier(0.25,0.1,0.25,1);
+        }
+        .robot-card:hover .img img { transform: scale(1.05); }
+        .robot-card .img .overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%);
+        }
+        .robot-card .img .icon-overlay {
+            position: absolute;
+            bottom: 12px; left: 16px;
+            font-size: 28px;
+            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
+        }
+        .robot-card .body {
+            padding: 20px 20px 24px;
+        }
+        .robot-card .body h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .robot-card .body h3 .org {
+            font-size: 12px;
+            font-weight: 500;
+            color: #5e5ce6;
+            background: rgba(94,92,230,0.08);
+            padding: 2px 10px;
+            border-radius: 20px;
+        }
+        .robot-card .body p {
+            font-size: 14px;
+            color: #6e6e73;
+            line-height: 1.5;
+            margin-top: 8px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .robot-card .body .tags {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .robot-card .body .tags span {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: rgba(94,92,230,0.06);
+            color: #5e5ce6;
+        }
+        .robot-card .body .open-btn {
+            margin-top: 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #5e5ce6;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: gap 0.3s;
+        }
+        .robot-card:hover .body .open-btn { gap: 10px; }
+
+        /* MODAL */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .modal {
+            background: #fff;
+            border-radius: 28px;
+            width: min(92vw, 800px);
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: scale(0.9) translateY(20px);
+            transition: transform 0.5s cubic-bezier(0.25,0.1,0.25,1);
+            position: relative;
+        }
+        .modal-overlay.open .modal {
+            transform: scale(1) translateY(0);
+        }
+        .modal-close {
+            position: absolute;
+            top: 16px; right: 16px;
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(0,0,0,0.5);
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s;
+        }
+        .modal-close:hover { background: rgba(0,0,0,0.7); }
+        .modal .modal-img {
+            width: 100%;
+            aspect-ratio: 16/9;
+            object-fit: cover;
+            border-radius: 28px 28px 0 0;
+            display: block;
+            background: #1d1d1f;
+        }
+        .modal .modal-body { padding: 36px 40px 40px; }
+        .modal .modal-body .modal-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .modal .modal-body .modal-header h2 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        .modal .modal-body .modal-header .org-badge {
+            font-size: 13px;
+            font-weight: 600;
+            color: #5e5ce6;
+            background: rgba(94,92,230,0.08);
+            padding: 4px 14px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+        .modal .modal-body .modal-desc {
+            font-size: 16px;
+            color: #3a3a3c;
+            line-height: 1.7;
+            margin-bottom: 28px;
+        }
+        .modal .modal-body .specs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+        .modal .modal-body .spec {
+            background: #f5f5f7;
+            border-radius: 14px;
+            padding: 16px 20px;
+        }
+        .modal .modal-body .spec .label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #86868b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .modal .modal-body .spec .value {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 4px;
+            color: #1d1d1f;
+        }
+        .modal .modal-body .modal-apps {
+            margin-bottom: 24px;
+        }
+        .modal .modal-body .modal-apps h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1d1d1f;
+        }
+        .modal .modal-body .modal-apps .apps-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .modal .modal-body .modal-apps .apps-list span {
+            font-size: 13px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: rgba(94,92,230,0.06);
+            color: #5e5ce6;
+            font-weight: 500;
+        }
+        .modal .modal-body .modal-video-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 30px;
+            background: #1d1d1f;
+            color: #fff;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.3s, background 0.3s;
+        }
+        .modal .modal-body .modal-video-link:hover {
+            transform: translateY(-2px);
+            background: #5e5ce6;
+        }
+
+        .twin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+        .twin-card {
+            border-radius: 24px; padding: 44px 40px;
+            transition: transform 0.5s cubic-bezier(0.25,0.1,0.25,1);
+        }
+        .twin-card:hover { transform: translateY(-6px) scale(1.005); }
+        .twin-card.bio { background: linear-gradient(135deg, #e8f5e9, #f1f8e9); border: 1px solid rgba(46,125,50,0.1); }
+        .twin-card.robot { background: linear-gradient(135deg, #e3f2fd, #e8eaf6); border: 1px solid rgba(21,101,192,0.1); }
+        .twin-card h3 { font-size: 24px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .twin-card ul { list-style: none; }
+        .twin-card li {
+            padding: 10px 0; font-size: 16px; color: #3a3a3c;
+            border-bottom: 1px solid rgba(0,0,0,0.04);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .twin-card li:last-child { border-bottom: none; }
+        .twin-card li .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .twin-card.bio .dot { background: #2e7d32; }
+        .twin-card.robot .dot { background: #1565c0; }
+
+        .table-wrap { overflow-x: auto; border-radius: 24px; border: 1px solid rgba(210,210,215,0.3); background: #f5f5f7; }
+        table { width: 100%; border-collapse: collapse; font-size: 15px; }
+        thead th {
+            text-align: left; padding: 20px 28px; font-weight: 600; color: #86868b;
+            font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 2px solid #d2d2d7;
+        }
+        tbody td { padding: 18px 28px; border-bottom: 1px solid #e8e8ed; color: #1d1d1f; }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr { transition: background 0.2s; cursor: default; }
+        tbody tr:hover { background: rgba(94,92,230,0.04); }
+
+        .video-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+        .video-card {
+            border-radius: 20px; overflow: hidden; background: #000;
+            border: 1px solid rgba(210,210,215,0.3);
+            transition: transform 0.5s cubic-bezier(0.25,0.1,0.25,1), box-shadow 0.5s;
+        }
+        .video-card:hover { transform: translateY(-6px) scale(1.01); box-shadow: 0 24px 60px rgba(0,0,0,0.08); }
+        .video-wrap { position: relative; width: 100%; aspect-ratio: 16/9; }
+        .video-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+        .video-meta { padding: 16px 20px 20px; background: #fff; }
+        .video-meta h3 { font-size: 15px; font-weight: 600; }
+        .video-meta p { font-size: 13px; color: #6e6e73; margin-top: 2px; }
+
+        .quote-block { text-align: center; padding: 140px 0; position: relative; }
+        .quote-block::before {
+            content: '"'; font-size: 120px; position: absolute; top: 40px;
+            left: 50%; transform: translateX(-50%); color: rgba(94,92,230,0.08);
+            font-weight: 800; line-height: 1;
+        }
+        .quote-block blockquote {
+            font-size: clamp(24px, 3vw, 36px); font-weight: 500;
+            letter-spacing: -0.015em; line-height: 1.4; color: #1d1d1f; max-width: 760px; margin: 0 auto;
+        }
+        .quote-block cite { display: block; margin-top: 24px; font-size: 15px; font-style: normal; color: #86868b; }
+
+        .parallax-strip {
+            height: 400px;
+            background: linear-gradient(135deg, #1d1d1f 0%, #2d2d2f 50%, #1d1d1f 100%);
+            display: flex; align-items: center; justify-content: center; overflow: hidden;
+        }
+        .parallax-strip .content {
+            font-size: 120px; font-weight: 800; color: rgba(255,255,255,0.03);
+            white-space: nowrap; letter-spacing: -0.04em;
+            animation: marquee 20s linear infinite; user-select: none;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        footer { text-align: center; padding: 64px 0 80px; color: #86868b; font-size: 13px; border-top: 1px solid #e8e8ed; }
+        footer .links { display: flex; justify-content: center; gap: 24px; margin-top: 16px; }
+        footer a { color: #5e5ce6; text-decoration: none; font-size: 13px; }
+        footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 900px) {
+            .intro-grid { grid-template-columns: 1fr; gap: 40px; }
+            .robot-grid { grid-template-columns: repeat(2, 1fr); }
+            .video-grid { grid-template-columns: 1fr 1fr; }
+            .twin-grid { grid-template-columns: 1fr; }
+            .modal .modal-body .specs { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 640px) {
+            .container { padding: 0 20px; }
+            .section { padding: 80px 0; }
+            .robot-grid { grid-template-columns: 1fr; }
+            .video-grid { grid-template-columns: 1fr; }
+            nav ul { gap: 16px; }
+            nav ul a { font-size: 12px; }
+            .modal .modal-body { padding: 24px 24px 32px; }
+            .hero h1 { font-size: 40px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cursor" id="cursor"></div>
+    <canvas id="particles"></canvas>
+
+    <nav id="nav">
+        <div class="container">
+            <a href="#" class="logo">&#x25B3; Zoomorfos</a>
+            <ul>
+                <li><a href="#intro">Introducción</a></li>
+                <li><a href="#robots">Robots</a></li>
+                <li><a href="#comparativa">Comparativa</a></li>
+                <li><a href="#videos">Videos</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-bg"></div>
+        <div class="hero-grid"></div>
+        <div class="hero-content">
+            <div class="hero-badge">Biomimética + Robótica</div>
+            <h1>Máquinas que <br><span class="gradient">imitan la vida</span></h1>
+            <p>Explorando cómo la naturaleza inspira la próxima generación de robots autónomos.</p>
+            <a href="#intro" class="hero-cta">Explorar <span>&rarr;</span></a>
+        </div>
+        <div class="hero-scroll">
+            <span>Desplaza</span>
+            <div class="line"></div>
+        </div>
+    </section>
+
+    <section class="section" id="intro">
+        <div class="container">
+            <div class="intro-grid">
+                <div>
+                    <div class="section-label">Fundamentos</div>
+                    <h2 class="section-title">¿Qué es un robot zoomorfo?</h2>
+                    <p class="section-desc">Sistemas robóticos que toman su arquitectura y principios de movimiento del reino animal.</p>
+                    <div class="intro-text" style="margin-top: 32px;">
+                        <p style="margin-bottom: 16px;">A diferencia de los robots industriales tradicionales —diseñados para repetir tareas en entornos controlados—, los robots zoomorfos exploran cómo la naturaleza resuelve problemas complejos de locomoción, adaptación y supervivencia.</p>
+                        <p>Desde cuadrúpedos que navegan escombros hasta insectos voladores del tamaño de una moneda, cada diseño responde a una pregunta: <strong>¿cómo haría la naturaleza esto?</strong></p>
+                    </div>
+                </div>
+                <div class="intro-visual">
+                    <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 40px; padding: 40px;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 64px; margin-bottom: 12px;">&#x1F98E;</div>
+                            <div style="font-size: 13px; color: rgba(255,255,255,0.5); font-weight: 500;">Naturaleza</div>
+                        </div>
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                            <div style="font-size: 24px; color: rgba(94,92,230,0.6);">&#x2192;</div>
+                            <div style="width: 2px; height: 40px; background: linear-gradient(to bottom, rgba(94,92,230,0.6), rgba(94,92,230,0.2));"></div>
+                            <div style="font-size: 12px; color: rgba(94,92,230,0.5); font-weight: 500; letter-spacing: 0.05em; writing-mode: vertical-lr; text-orientation: mixed;">Inspira</div>
+                            <div style="width: 2px; height: 40px; background: linear-gradient(to bottom, rgba(94,92,230,0.2), rgba(94,92,230,0.6));"></div>
+                            <div style="font-size: 24px; color: rgba(94,92,230,0.6);">&#x2192;</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 64px; margin-bottom: 12px;">&#x1F916;</div>
+                            <div style="font-size: 13px; color: rgba(255,255,255,0.5); font-weight: 500;">Robot</div>
+                        </div>
+                    </div>
+                    <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 12px; color: rgba(255,255,255,0.2); letter-spacing: 0.05em; text-transform: uppercase;">Biomimética</div>
+                    <div style="position: absolute; top: -20%; left: -10%; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #5e5ce6, #3a38b0); filter: blur(8px); opacity: 0.3; animation: orbFloat 6s ease-in-out infinite alternate;"></div>
+                    <div style="position: absolute; bottom: -20%; right: -10%; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle at 70% 30%, #a5a3ff, #5e5ce6); filter: blur(12px); opacity: 0.2; animation: orbFloat 8s ease-in-out infinite alternate-reverse;"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Robots interactivos -->
+    <section class="section" id="robots">
+        <div class="container">
+            <div class="section-label">Galería interactiva</div>
+            <h2 class="section-title">Robots destacados</h2>
+            <p class="section-desc" style="margin-bottom: 40px;">
+                Selecciona cada robot para ver sus especificaciones técnicas y aplicaciones.
+            </p>
+            <div class="robot-grid" id="robotGrid"></div>
+        </div>
+    </section>
+
+    <section class="section" id="comparativa">
+        <div class="container">
+            <div class="section-label">Análisis</div>
+            <h2 class="section-title">Animal vs. Máquina</h2>
+            <p class="section-desc" style="margin-bottom: 40px;">Mismos problemas, soluciones distintas.</p>
+            <div class="twin-grid">
+                <div class="twin-card bio">
+                    <h3>&#x1F9EC; Ser vivo</h3>
+                    <ul>
+                        <li><span class="dot"></span>Músculos y tendones</li>
+                        <li><span class="dot"></span>Sistema nervioso central</li>
+                        <li><span class="dot"></span>Metabolismo (energía química)</li>
+                        <li><span class="dot"></span>Homeostasis y reparación</li>
+                        <li><span class="dot"></span>Evolución por selección natural</li>
+                        <li><span class="dot"></span>Aprendizaje por experiencia</li>
+                    </ul>
+                </div>
+                <div class="twin-card robot">
+                    <h3>&#x1F916; Robot zoomorfo</h3>
+                    <ul>
+                        <li><span class="dot"></span>Servomotores y actuadores</li>
+                        <li><span class="dot"></span>Microcontrolador + IA</li>
+                        <li><span class="dot"></span>Baterías (energía eléctrica)</li>
+                        <li><span class="dot"></span>Mantenimiento programado</li>
+                        <li><span class="dot"></span>Diseño iterativo por ingeniería</li>
+                        <li><span class="dot"></span>Entrenamiento con datos</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="section-label">Clasificación</div>
+            <h2 class="section-title">Tipos de locomoción</h2>
+            <p class="section-desc" style="margin-bottom: 40px;">Cada entorno demanda una estrategia de movimiento distinta.</p>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Tipo</th><th>Referente natural</th><th>Aplicación</th><th>Desafío</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>Cuadrúpedo</strong></td><td>Perro, cabra</td><td>Rescate, exploración</td><td>Equilibrio dinámico</td></tr>
+                        <tr><td><strong>Bípedo</strong></td><td>Humano, avestruz</td><td>Asistencia doméstica</td><td>Estabilidad al caminar</td></tr>
+                        <tr><td><strong>Serpentiforme</strong></td><td>Serpiente</td><td>Inspección de tuberías</td><td>Coordinación de módulos</td></tr>
+                        <tr><td><strong>Volador</strong></td><td>Ave, insecto</td><td>Vigilancia, polinización</td><td>Eficiencia energética</td></tr>
+                        <tr><td><strong>Acuático</strong></td><td>Pez, tortuga</td><td>Oceanografía</td><td>Presión y sigilo</td></tr>
+                        <tr><td><strong>Artrópodo</strong></td><td>Araña, cangrejo</td><td>Terrenos extremos</td><td>Patas múltiples</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="videos">
+        <div class="container">
+            <div class="section-label">Multimedia</div>
+            <h2 class="section-title">Ver en acción</h2>
+            <p class="section-desc" style="margin-bottom: 40px;">Spot, SmartBird y el robot serpiente en movimiento.</p>
+            <div class="video-grid">
+                <div class="video-card">
+                    <div class="video-wrap"><iframe src="https://www.youtube-nocookie.com/embed/LP4-c5AK30g" title="Spot" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>
+                    <div class="video-meta"><h3>Boston Dynamics &mdash; Spot</h3><p>Robot cuadrúpedo en acción</p></div>
+                </div>
+                <div class="video-card">
+                    <div class="video-wrap"><iframe src="https://www.youtube-nocookie.com/embed/nnR8fDW3Ilo" title="SmartBird" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>
+                    <div class="video-meta"><h3>Festo &mdash; SmartBird</h3><p>Vuelo inspirado en gaviotas</p></div>
+                </div>
+                <div class="video-card">
+                    <div class="video-wrap"><iframe src="https://www.youtube-nocookie.com/embed/8VLjDjXzTiU" title="Snake Robot" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>
+                    <div class="video-meta"><h3>CMU &mdash; Robot serpiente</h3><p>Locomoción serpentiforme</p></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="parallax-strip">
+        <div class="content">
+            Biomimética &nbsp;&middot;&nbsp; Robótica &nbsp;&middot;&nbsp; Futuro &nbsp;&middot;&nbsp;&nbsp;
+            Biomimética &nbsp;&middot;&nbsp; Robótica &nbsp;&middot;&nbsp; Futuro &nbsp;&middot;&nbsp;&nbsp;
+        </div>
+    </div>
+
+    <section class="quote-block">
+        <div class="container">
+            <blockquote>"La naturaleza no es solo inspiración: es el archivo de soluciones más completo del planeta."</blockquote>
+            <cite>&mdash; Biomimética aplicada a la robótica</cite>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>Material educativo sobre robots zoomorfos</p>
+            <div class="links">
+                <a href="#intro">Introducción</a>
+                <a href="#robots">Robots</a>
+                <a href="#comparativa">Comparativa</a>
+                <a href="#videos">Videos</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal">
+            <button class="modal-close" id="modalClose">&#x2715;</button>
+            <img class="modal-img" id="modalImg" alt="">
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        const robots = [
+            {
+                id: 'spot', nombre: 'Spot', org: 'Boston Dynamics', icon: '\u{1F436}',
+                img: 'https://i.ytimg.com/vi/LP4-c5AK30g/hqdefault.jpg',
+                desc: 'Robot cuadr\u00fapedo m\u00e1s avanzado del mundo. Dise\u00f1ado para operar en terrenos accidentados, escaleras y espacios industriales hostiles. Su sistema de percepci\u00f3n 3D y equilibrio din\u00e1mico le permite navegar aut\u00f3nomamente.',
+                tags: ['Cuadr\u00fapedo', 'Comercial'],
+                specs: [
+                    { label: 'A\u00f1o', value: '2016' },
+                    { label: 'Peso', value: '32.5 kg' },
+                    { label: 'Velocidad', value: '1.6 m/s' },
+                    { label: 'Autonom\u00eda', value: '90 min' },
+                    { label: 'Carga \u00fatil', value: '14 kg' },
+                    { label: 'Tecnolog\u00eda clave', value: 'Percepci\u00f3n 3D + IA' }
+                ],
+                apps: ['Inspecci\u00f3n industrial', 'Rescate', 'Seguridad patrimonial', 'Mapeo 3D'],
+                video: 'LP4-c5AK30g'
+            },
+            {
+                id: 'smartbird', nombre: 'SmartBird', org: 'Festo', icon: '\u{1F985}',
+                img: 'https://i.ytimg.com/vi/nnR8fDW3Ilo/hqdefault.jpg',
+                desc: 'Ornit\u00f3ptero ultraligero que descifra el vuelo de las aves. Sus alas no solo baten, sino que se retuercen activamente para generar sustentaci\u00f3n y propulsi\u00f3n. Alcanza una eficiencia aerodin\u00e1mica superior al 80%.',
+                tags: ['Volador', 'Prototipo'],
+                specs: [
+                    { label: 'A\u00f1o', value: '2011' },
+                    { label: 'Peso', value: '450 g' },
+                    { label: 'Envergadura', value: '1.96 m' },
+                    { label: 'Potencia', value: '23 W' },
+                    { label: 'Material', value: 'Fibra de carbono' },
+                    { label: 'Tecnolog\u00eda clave', value: 'Torsi\u00f3n activa de alas' }
+                ],
+                apps: ['Investigaci\u00f3n aerodin\u00e1mica', 'Demostraci\u00f3n tecnol\u00f3gica'],
+                video: 'nnR8fDW3Ilo'
+            },
+            {
+                id: 'snake', nombre: 'Snake Robot', org: 'CMU', icon: '\u{1F40D}',
+                img: 'https://i.ytimg.com/vi/8VLjDjXzTiU/hqdefault.jpg',
+                desc: 'Robot modular altamente articulado que imita el movimiento de las serpientes. Capaz de deslizarse por tuber\u00edas, trepar \u00e1rboles y contorsionarse en espacios donde ning\u00fan otro robot puede llegar.',
+                tags: ['Serpentiforme', 'Modular'],
+                specs: [
+                    { label: 'Desarrollado', value: '2012' },
+                    { label: 'Longitud', value: 'Variable' },
+                    { label: 'Grados de libertad', value: 'Por m\u00f3dulo: 1' },
+                    { label: 'Modos de marcha', value: '6+' },
+                    { label: 'Control', value: 'Distribuido' },
+                    { label: 'Tecnolog\u00eda clave', value: 'M\u00f3dulos articulados' }
+                ],
+                apps: ['B\u00fasqueda y rescate', 'Inspecci\u00f3n de tuber\u00edas', 'Exploraci\u00f3n arqueol\u00f3gica'],
+                video: '8VLjDjXzTiU'
+            },
+            {
+                id: 'gecko', nombre: 'StickyBot', org: 'Stanford', icon: '\u{1F98E}',
+                img: 'https://i.ytimg.com/vi/Uv_bf8rApaQ/hqdefault.jpg',
+                desc: 'Robot trepador inspirado en los geckos. Utiliza adhesivos secos direccionales que imitan las setae de las patas del gecko para adherirse a superficies lisas como vidrio sin dejar residuos.',
+                tags: ['Trepador', 'Materiales'],
+                specs: [
+                    { label: 'A\u00f1o', value: '2006' },
+                    { label: 'Adhesi\u00f3n', value: 'Fuerzas de van der Waals' },
+                    { label: 'Superficies', value: 'Vidrio, pl\u00e1stico, metal' },
+                    { label: 'Tecnolog\u00eda clave', value: 'Adhesivos secos direccionales' },
+                    { label: 'Generaci\u00f3n actual', value: 'StickyBot III' },
+                    { label: 'Instituci\u00f3n', value: 'BDML Lab' }
+                ],
+                apps: ['Mantenimiento en altura', 'Inspecci\u00f3n de fachadas', 'Limpieza de superficies'],
+                video: 'Uv_bf8rApaQ'
+            },
+            {
+                id: 'sofi', nombre: 'SoFi', org: 'MIT CSAIL', icon: '\u{1F41F}',
+                img: 'https://i.ytimg.com/vi/BAedVg3z1Eg/hqdefault.jpg',
+                desc: 'Robot pez blando que nada silenciosamente junto a peces reales. Su propulsi\u00f3n hidr\u00e1ulica y aletas flexibles le permiten moverse de forma natural en el oc\u00e9ano para observar vida marina sin perturbarla.',
+                tags: ['Acu\u00e1tico', 'Investigaci\u00f3n'],
+                specs: [
+                    { label: 'A\u00f1o', value: '2018' },
+                    { label: 'Longitud', value: '47 cm' },
+                    { label: 'Profundidad', value: '0 \u2013 18 m' },
+                    { label: 'Propulsi\u00f3n', value: 'Hidr\u00e1ulica' },
+                    { label: 'Material', value: 'Silicona + pl\u00e1stico' },
+                    { label: 'Tecnolog\u00eda clave', value: 'Comunicaci\u00f3n ac\u00fastica' }
+                ],
+                apps: ['Observaci\u00f3n de vida marina', 'Oceanograf\u00eda', 'Monitoreo ambiental'],
+                video: 'BAedVg3z1Eg'
+            },
+            {
+                id: 'robobee', nombre: 'RoboBee', org: 'Harvard', icon: '\u{1F99F}',
+                img: 'https://i.ytimg.com/vi/cyjKOJhIiuU/hqdefault.jpg',
+                desc: 'Microdrone del tama\u00f1o de una abeja. Utiliza actuadores piezoel\u00e9ctricos como "m\u00fasculos artificiales" para batir sus alas. Puede volar, posarse y pronto polinizar de forma aut\u00f3noma.',
+                tags: ['Volador', 'Micro'],
+                specs: [
+                    { label: 'A\u00f1o', value: '2013' },
+                    { label: 'Peso', value: '80 mg' },
+                    { label: 'Envergadura', value: '3 cm' },
+                    { label: 'Actuadores', value: 'Piezoel\u00e9ctricos' },
+                    { label: 'Alimentaci\u00f3n', value: 'Celdas solares' },
+                    { label: 'Tecnolog\u00eda clave', value: 'Vuelo a escala insecto' }
+                ],
+                apps: ['Polinizaci\u00f3n artificial', 'Rescate en escombros', 'Monitoreo ambiental'],
+                video: 'cyjKOJhIiuU'
+            }
+        ];
+
+        const gradColors = {
+            'gecko': ['#0f4c3a', '#1b5e20'],
+            'sofi': ['#0d47a1', '#01579b'],
+            'robobee': ['#4a148c', '#311b92']
+        };
+
+        function buildRobotCards() {
+            const grid = document.getElementById('robotGrid');
+            grid.innerHTML = robots.map(r => {
+                const hasImg = r.img;
+                const style = hasImg ? '' : `background: linear-gradient(135deg, ${(gradColors[r.id] || ['#1d1d1f','#2d2d2f']).join(',')});`;
+                return `
+                    <div class="robot-card" data-id="${r.id}">
+                        <div class="img" style="${style}">
+                            ${hasImg ? `<img src="${r.img}" alt="${r.nombre}" loading="lazy">` : ''}
+                            <div class="overlay"></div>
+                            <span class="icon-overlay">${r.icon}</span>
+                        </div>
+                        <div class="body">
+                            <h3>${r.nombre} <span class="org">${r.org}</span></h3>
+                            <p>${r.desc.substring(0, 100)}…</p>
+                            <div class="tags">${r.tags.map(t => `<span>${t}</span>`).join('')}</div>
+                            <div class="open-btn">Ver ficha técnica →</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            grid.querySelectorAll('.robot-card').forEach(card => {
+                card.addEventListener('click', () => openModal(card.dataset.id));
+            });
+        }
+
+        function openModal(id) {
+            const r = robots.find(x => x.id === id);
+            const modal = document.getElementById('modal');
+            const img = document.getElementById('modalImg');
+            const body = document.getElementById('modalBody');
+
+            if (r.img) {
+                img.src = r.img; img.style.display = 'block';
+            } else {
+                const c = gradColors[r.id] || ['#1d1d1f','#2d2d2f'];
+                img.style.display = 'none';
+                const fakeImg = document.createElement('div');
+                fakeImg.style.cssText = `width:100%;aspect-ratio:16/9;border-radius:28px 28px 0 0;background:linear-gradient(135deg,${c.join(',')});display:flex;align-items:center;justify-content:center;font-size:72px;`;
+                fakeImg.textContent = r.icon;
+                img.parentNode.insertBefore(fakeImg, img);
+                img.dataset.fake = 'true';
+            }
+
+            body.innerHTML = `
+                <div class="modal-header">
+                    <h2>${r.icon} ${r.nombre}</h2>
+                    <span class="org-badge">${r.org}</span>
+                </div>
+                <p class="modal-desc">${r.desc}</p>
+                <div class="specs">${r.specs.map(s => `<div class="spec"><div class="label">${s.label}</div><div class="value">${s.value}</div></div>`).join('')}</div>
+                <div class="modal-apps">
+                    <h4>Aplicaciones</h4>
+                    <div class="apps-list">${r.apps.map(a => `<span>${a}</span>`).join('')}</div>
+                </div>
+                ${r.video ? `<a class="modal-video-link" href="https://www.youtube.com/watch?v=${r.video}" target="_blank">▶ Ver video en YouTube</a>` : ''}
+            `;
+
+            modal.classList.add('open');
+        }
+
+        document.getElementById('modalClose').addEventListener('click', () => {
+            document.getElementById('modal').classList.remove('open');
+            const fake = document.querySelector('#modalImg[data-fake]');
+            if (fake) fake.remove();
+        });
+        document.getElementById('modal').addEventListener('click', e => {
+            if (e.target === e.currentTarget) {
+                document.getElementById('modal').classList.remove('open');
+                const fake = document.querySelector('#modalImg[data-fake]');
+                if (fake) fake.remove();
+            }
+        });
+
+        buildRobotCards();
+
+        /* Cursor */
+        const cursor = document.getElementById('cursor');
+        let mx = 0, my = 0, cx = 0, cy = 0;
+        document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; cursor.classList.add('visible'); });
+        document.addEventListener('mouseleave', () => cursor.classList.remove('visible'));
+        document.querySelectorAll('a, button, .robot-card, .video-card, .twin-card').forEach(el =>
+            el.addEventListener('mouseenter', () => cursor.classList.add('hover'))
+        );
+        document.querySelectorAll('a, button, .robot-card, .video-card, .twin-card').forEach(el =>
+            el.addEventListener('mouseleave', () => cursor.classList.remove('hover'))
+        );
+        function tick() {
+            cx += (mx - cx) * 0.12; cy += (my - cy) * 0.12;
+            cursor.style.transform = `translate(${cx - 6}px, ${cy - 6}px)`;
+            requestAnimationFrame(tick);
+        }
+        tick();
+
+        /* Partículas */
+        const canvas = document.getElementById('particles');
+        const ctx = canvas.getContext('2d');
+        let w, h, particles = [];
+        function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
+        resize();
+        window.addEventListener('resize', resize);
+        for (let i = 0; i < 60; i++) particles.push({
+            x: Math.random() * w, y: Math.random() * h,
+            vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
+            r: Math.random() * 1.5 + 0.5, a: Math.random() * 0.4 + 0.1
+        });
+        function drawParticles() {
+            ctx.clearRect(0, 0, w, h);
+            for (let p of particles) {
+                p.x += p.vx; p.y += p.vy;
+                if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
+                if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(94,92,230,${p.a})`; ctx.fill();
+            }
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 150) {
+                        ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.strokeStyle = `rgba(94,92,230,${0.06 * (1 - dist / 150)})`;
+                        ctx.lineWidth = 0.5; ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(drawParticles);
+        }
+        drawParticles();
+
+        window.addEventListener('scroll', () => {
+            document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 40);
+        });
+    </script>
+</body>
+</html>
